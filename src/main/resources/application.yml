@@ -1,0 +1,29 @@
+server:
+  port: 5002
+  servlet:
+    context-path: /
+spring:
+  application:
+    name: issuetracker-api
+  datasource:
+    url: jdbc:h2:mem:issuetracker;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+app:
+  jwt:
+    secret: f12ab1843ce1067d57f0507f47b29921ab28b5e64fa60f51adbf0741d6c5498a9a9d4dd86775b3a7ee2dd47799f1f9d4fb1c5513d55f5b4c23b6751a1a76c28e
+    expiration-ms: 86400000
+  uploads:
+    dir: ./uploads
+  allowed-email-domains: ""   # e.g. "example.com,corp.io" — empty disables whitelist
