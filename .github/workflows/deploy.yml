@@ -1,0 +1,66 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest
+
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            # Log in to GHCR
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Stop and remove old container
+            docker stop issuetracker-api || true
+            docker rm issuetracker-api || true
+            
+            # Pull latest image
+            docker pull ghcr.io/${{ github.repository }}:latest
+            
+            # Run new container
+            docker run -d -p 5002:5002 \
+              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              -e SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
+              -e SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USER }}" \
+              -e SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              -e APP_CORS_ALLOWED_ORIGINS="${{ secrets.CORS_ORIGINS }}" \
+              -v /home/${{ secrets.VM_USER }}/uploads:/app/uploads \
+              --name issuetracker-api ghcr.io/${{ github.repository }}:latest

@@ -1,6 +1,7 @@
 package com.issuetracker.config;
 
 import com.issuetracker.security.JwtAuthFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -32,6 +33,7 @@ public class SecurityConfig {
       .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
       .authorizeHttpRequests(reg -> reg
         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/forgot-password").permitAll()
+        .requestMatchers("/api/v1/patterns/**").permitAll()
         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/h2-console/**").permitAll()
         .anyRequest().authenticated())
       .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
@@ -40,10 +42,14 @@ public class SecurityConfig {
     return http.build();
   }
 
+  @Value("${app.cors.allowed-origins:*}")
+  private String allowedOrigins;
+
   @Bean
   public CorsConfigurationSource corsSource() {
     CorsConfiguration cfg = new CorsConfiguration();
-    cfg.setAllowedOriginPatterns(List.of("*"));
+    String[] origins = allowedOrigins.split(",");
+    cfg.setAllowedOriginPatterns(List.of(origins));
     cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     cfg.setAllowedHeaders(List.of("*"));
     UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
